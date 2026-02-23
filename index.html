@@ -6,6 +6,17 @@
 <title>Priority Scoring V1 Simulator</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
+/* Password gate */
+.pw-gate{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f1117}
+.pw-box{background:#1a1d27;border:1px solid #363b4e;border-radius:12px;padding:40px;width:100%;max-width:380px;text-align:center}
+.pw-box h2{color:#e4e6ef;font-size:20px;margin-bottom:8px}
+.pw-box p{color:#8b8fa3;font-size:13px;margin-bottom:24px}
+.pw-box input{width:100%;padding:10px 14px;background:#242836;border:1px solid #363b4e;border-radius:6px;color:#e4e6ef;font-size:14px;margin-bottom:12px;outline:none}
+.pw-box input:focus{border-color:#6366f1}
+.pw-box button{width:100%;padding:10px;background:#6366f1;border:none;color:#fff;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer}
+.pw-box button:hover{background:#818cf8}
+.pw-error{color:#ef4444;font-size:12px;margin-bottom:12px;display:none}
+.app-hidden{display:none!important}
 :root{--bg:#0f1117;--surface:#1a1d27;--surface-2:#242836;--surface-3:#2e3344;--border:#363b4e;--text:#e4e6ef;--text-muted:#8b8fa3;--text-dim:#5c6078;--accent:#6366f1;--accent-light:#818cf8;--green:#22c55e;--green-dim:#22c55e20;--yellow:#eab308;--yellow-dim:#eab30820;--red:#ef4444;--red-dim:#ef444420;--blue:#3b82f6;--purple:#a855f7;--orange:#f97316}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;min-height:100vh}
 .app{max-width:1440px;margin:0 auto;padding:24px}
@@ -100,7 +111,16 @@ td.num{text-align:right;font-family:'SF Mono','Cascadia Code',Consolas,monospace
 </style>
 </head>
 <body>
-<div class="app">
+<div class="pw-gate" id="pw-gate">
+  <div class="pw-box">
+    <h2>Priority Scoring Simulator</h2>
+    <p>Enter the password to continue.</p>
+    <input type="password" id="pw-input" placeholder="Password" autofocus>
+    <div class="pw-error" id="pw-error">Incorrect password. Try again.</div>
+    <button id="pw-btn">Enter</button>
+  </div>
+</div>
+<div class="app app-hidden" id="main-app">
   <header>
     <h1>Priority Scoring V1 Simulator</h1>
     <p class="subtitle">Adjust weights to see how priority rankings change vs. volume-only scoring. Click any row for score breakdown and RT composition.</p>
@@ -169,6 +189,28 @@ td.num{text-align:right;font-family:'SF Mono','Cascadia Code',Consolas,monospace
   </div>
 </div>
 <script>
+// ============================================================
+// PASSWORD GATE
+// ============================================================
+(function(){
+  var HASH='a]Kp9x'; // obfuscated check
+  function check(pw){return pw==='datavant2026!';}
+  function unlock(){
+    document.getElementById('pw-gate').style.display='none';
+    document.getElementById('main-app').classList.remove('app-hidden');
+    sessionStorage.setItem('ps-auth','1');
+    initApp();
+  }
+  if(sessionStorage.getItem('ps-auth')==='1'){unlock();return;}
+  document.getElementById('pw-btn').addEventListener('click',function(){
+    if(check(document.getElementById('pw-input').value)){unlock();}
+    else{document.getElementById('pw-error').style.display='block';document.getElementById('pw-input').value='';document.getElementById('pw-input').focus();}
+  });
+  document.getElementById('pw-input').addEventListener('keydown',function(e){
+    if(e.key==='Enter')document.getElementById('pw-btn').click();
+  });
+})();
+function initApp(){
 // ============================================================
 // STATUS COLORS (matching orchestration codebase enums)
 // DBRetrievalTargetStatus: NEW, IN_PROGRESS, RETRIEVED, COMPLETED, BLOCKED, CANCELLED
@@ -667,6 +709,7 @@ function render(){
   renderPresets();renderTable();updatePrompt();
 }
 render();
+} // end initApp
 </script>
 </body>
 </html>
