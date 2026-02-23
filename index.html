@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Priority Scoring V1 Simulator</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0f1117;--surface:#1a1d27;--surface-2:#242836;--surface-3:#2e3344;--border:#363b4e;--text:#e4e6ef;--text-muted:#8b8fa3;--text-dim:#5c6078;--accent:#6366f1;--accent-light:#818cf8;--green:#22c55e;--green-dim:#22c55e20;--yellow:#eab308;--yellow-dim:#eab30820;--red:#ef4444;--red-dim:#ef444420;--blue:#3b82f6;--purple:#a855f7;--orange:#f97316}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;min-height:100vh}
+.app{max-width:1440px;margin:0 auto;padding:24px}
+header{margin-bottom:24px}
+header h1{font-size:24px;font-weight:700;margin-bottom:4px}
+header .subtitle{color:var(--text-muted);font-size:14px}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.badge-offsite{background:var(--blue);color:#fff}
+.badge-onsite{background:var(--purple);color:#fff}
+.controls{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:20px}
+.controls-grid{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:24px;align-items:start}
+.weight-control{display:flex;flex-direction:column;gap:8px}
+.weight-label{display:flex;justify-content:space-between;align-items:baseline}
+.weight-name{font-size:13px;font-weight:600}
+.weight-value{font-family:'SF Mono','Cascadia Code',Consolas,monospace;font-size:20px;font-weight:700;color:var(--accent-light)}
+.weight-effective{font-size:11px;color:var(--text-muted);font-family:'SF Mono','Cascadia Code',Consolas,monospace}
+input[type=range]{-webkit-appearance:none;width:100%;height:6px;background:var(--surface-3);border-radius:3px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid var(--accent-light)}
+.controls-sidebar{display:flex;flex-direction:column;gap:12px;border-left:1px solid var(--border);padding-left:24px;min-width:180px}
+.sidebar-section-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:2px}
+.presets{display:flex;flex-direction:column;gap:4px}
+.preset-btn{background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;text-align:left}
+.preset-btn:hover{background:var(--surface-3);border-color:var(--accent)}
+.preset-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.filters{display:flex;flex-direction:column;gap:6px}
+.filter-checkbox{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}
+.filter-checkbox input{accent-color:var(--accent);width:14px;height:14px}
+.stats-bar{display:flex;gap:20px;margin-bottom:16px;flex-wrap:wrap}
+.stat{display:flex;align-items:baseline;gap:6px}
+.stat-value{font-family:'SF Mono','Cascadia Code',Consolas,monospace;font-size:18px;font-weight:700}
+.stat-label{font-size:12px;color:var(--text-muted)}
+.table-container{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:20px}
+table{width:100%;border-collapse:collapse}
+thead{background:var(--surface-2)}
+th{padding:10px 14px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);border-bottom:1px solid var(--border);white-space:nowrap}
+th.num{text-align:right}
+td{padding:10px 14px;font-size:13px;border-bottom:1px solid var(--border);vertical-align:middle}
+td.num{text-align:right;font-family:'SF Mono','Cascadia Code',Consolas,monospace}
+.row-active{cursor:pointer}
+.row-active:hover{background:var(--surface-2)}
+.row-na{opacity:.45}
+.provider-name{font-weight:500}
+.phone-number{color:var(--text-muted);font-size:12px;font-family:'SF Mono','Cascadia Code',Consolas,monospace}
+.scenario-text{color:var(--text-dim);font-size:11px;font-style:italic}
+.rank-cell{display:flex;align-items:center;gap:6px}
+.rank-num{font-family:'SF Mono','Cascadia Code',Consolas,monospace;font-weight:700;font-size:14px;min-width:20px}
+.rank-delta{font-size:11px;font-weight:600;padding:1px 5px;border-radius:3px}
+.rank-up{color:var(--green);background:var(--green-dim)}
+.rank-down{color:var(--red);background:var(--red-dim)}
+.rank-same{color:var(--text-dim)}
+.score-cell{display:flex;align-items:center;gap:8px;min-width:140px}
+.score-num{font-family:'SF Mono','Cascadia Code',Consolas,monospace;font-weight:700;font-size:14px;min-width:28px;text-align:right}
+.score-bar-bg{flex:1;height:8px;background:var(--surface-3);border-radius:4px;overflow:hidden}
+.score-bar{height:100%;border-radius:4px;transition:width .3s ease}
+.detail-row td{padding:0;border-bottom:1px solid var(--border)}
+.detail-content{padding:16px 24px;background:var(--surface-2);display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.detail-section h4{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:8px}
+.detail-table{width:100%}
+.detail-table td{padding:4px 8px;font-size:12px;border:none;border-bottom:1px solid var(--border)}
+.detail-table td:first-child{color:var(--text-muted);width:180px}
+.detail-table td:last-child{font-family:'SF Mono','Cascadia Code',Consolas,monospace}
+.calc-formula{font-family:'SF Mono','Cascadia Code',Consolas,monospace;font-size:12px;background:var(--surface);padding:10px 14px;border-radius:6px;margin-top:8px;line-height:1.8;color:var(--text-muted)}
+.calc-val{color:var(--accent-light);font-weight:600}
+.calc-result{color:var(--green);font-weight:700}
+.rt-bar{display:flex;height:22px;border-radius:4px;overflow:hidden;margin-top:4px;margin-bottom:8px}
+.rt-segment{display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#fff;min-width:20px}
+.rt-legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.rt-legend-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-muted)}
+.rt-legend-dot{width:8px;height:8px;border-radius:2px}
+.actionable-tag{font-size:9px;font-weight:600;padding:1px 4px;border-radius:2px;margin-left:4px}
+.actionable-yes{background:var(--green-dim);color:var(--green)}
+.actionable-no{background:var(--red-dim);color:var(--red)}
+.na-reason{font-size:11px;color:var(--text-dim);font-style:italic}
+.section-divider{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin:12px 0 6px;padding-top:8px;border-top:1px solid var(--border)}
+.output-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;position:relative;margin-top:20px}
+.output-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:8px}
+.output-text{font-size:13px;line-height:1.7;white-space:pre-wrap}
+.copy-btn{position:absolute;top:14px;right:14px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer}
+.copy-btn:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+.add-section{margin-top:20px}
+.add-toggle{background:none;border:1px dashed var(--border);color:var(--text-muted);padding:10px 20px;border-radius:8px;font-size:13px;cursor:pointer;width:100%}
+.add-toggle:hover{border-color:var(--accent);color:var(--accent-light)}
+.add-form{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;display:none}
+.add-form.visible{display:block}
+.form-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px}
+.form-field label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:4px}
+.form-field input,.form-field select{width:100%;padding:8px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px}
+.form-field input:focus,.form-field select:focus{outline:none;border-color:var(--accent)}
+.form-actions{display:flex;gap:8px}
+.btn-primary{background:var(--accent);border:none;color:#fff;padding:8px 20px;border-radius:6px;font-size:13px;cursor:pointer}
+.btn-secondary{background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);padding:8px 20px;border-radius:6px;font-size:13px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Priority Scoring V1 Simulator</h1>
+    <p class="subtitle">Adjust weights to see how priority rankings change vs. volume-only scoring. Click any row for score breakdown and RT composition.</p>
+  </header>
+  <div class="controls">
+    <div class="controls-grid">
+      <div class="weight-control">
+        <div class="weight-label"><span class="weight-name">To-go Volume</span><span class="weight-value" id="vol-value">40</span></div>
+        <input type="range" id="vol-slider" min="0" max="100" value="40">
+        <div class="weight-effective" id="vol-eff">Effective: 40%</div>
+      </div>
+      <div class="weight-control">
+        <div class="weight-label"><span class="weight-name">Days Since Last Call</span><span class="weight-value" id="rec-value">35</span></div>
+        <input type="range" id="rec-slider" min="0" max="100" value="35">
+        <div class="weight-effective" id="rec-eff">Effective: 35%</div>
+      </div>
+      <div class="weight-control">
+        <div class="weight-label"><span class="weight-name">Past Due Count</span><span class="weight-value" id="pd-value">25</span></div>
+        <input type="range" id="pd-slider" min="0" max="100" value="25">
+        <div class="weight-effective" id="pd-eff">Effective: 25%</div>
+      </div>
+      <div class="controls-sidebar">
+        <div><div class="sidebar-section-label">Presets</div><div class="presets" id="presets"></div></div>
+        <div><div class="sidebar-section-label">Show</div>
+          <div class="filters">
+            <label class="filter-checkbox"><input type="checkbox" id="filter-offsite" checked> Offsite</label>
+            <label class="filter-checkbox"><input type="checkbox" id="filter-onsite" checked> Onsite</label>
+            <label class="filter-checkbox"><input type="checkbox" id="filter-na" checked> N/A (filtered out)</label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="stats-bar" id="stats-bar"></div>
+  <div class="table-container">
+    <table>
+      <thead><tr>
+        <th style="width:70px">Rank</th><th>Provider</th><th style="width:80px">Method</th>
+        <th class="num" style="width:80px">To-go Vol</th><th class="num" style="width:110px">Days Since Call</th>
+        <th class="num" style="width:80px">Past Due</th><th style="width:170px">Score</th>
+      </tr></thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+  <div class="add-section">
+    <button class="add-toggle" id="add-toggle">+ Add Custom Phone Number</button>
+    <div class="add-form" id="add-form">
+      <div class="form-grid">
+        <div class="form-field"><label>Provider Name</label><input type="text" id="add-provider" placeholder="e.g., Acme Health"></div>
+        <div class="form-field"><label>Method</label><select id="add-method"><option value="offsite">Offsite</option><option value="onsite">Onsite</option></select></div>
+        <div class="form-field"><label>Actionable RTs</label><input type="number" id="add-volume" min="0" value="10"></div>
+        <div class="form-field"><label>Days Since Last Call (-1 = never)</label><input type="number" id="add-days" min="-1" value="3"></div>
+        <div class="form-field"><label>Past Due Count</label><input type="number" id="add-pastdue" min="0" value="0"></div>
+        <div class="form-field"><label>Total RTs</label><input type="number" id="add-total" min="0" value="15"></div>
+      </div>
+      <div class="form-actions">
+        <button class="btn-primary" id="btn-add">Add Phone</button>
+        <button class="btn-secondary" id="btn-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+  <div class="output-panel">
+    <div class="output-label">Summary</div>
+    <div class="output-text" id="output-text"></div>
+    <button class="copy-btn" id="copy-btn">Copy</button>
+  </div>
+</div>
+<script>
+// ============================================================
+// STATUS COLORS (matching orchestration codebase enums)
+// DBRetrievalTargetStatus: NEW, IN_PROGRESS, RETRIEVED, COMPLETED, BLOCKED, CANCELLED
+// DBOnsiteSchedulingStatus: NEW, UNASSIGNED, ASSIGNED, COMPLETED, NO_AVAILABILITY
+// ============================================================
+var C = {
+  NEW:'#22c55e', IN_PROGRESS:'#3b82f6', RETRIEVED:'#a855f7', COMPLETED:'#6b7280', BLOCKED:'#ef4444', CANCELLED:'#4b5563',
+  OS_OUTREACH:'#3b82f6', OS_SCHED_UNASGN:'#f97316', OS_SCHED_ASGN:'#eab308', OS_NO_AVAIL:'#ef4444', OS_COMPLETED:'#6b7280'
+};
+
+// ============================================================
+// DATA - structured to match orchestration RT model
+// statuses = RT-level status counts (DBRetrievalTargetStatus)
+// onsiteSub = onsite scheduling sub-status breakdown within IN_PROGRESS RTs (DBOnsiteSchedulingStatus)
+// ============================================================
+var phones = [
+  // === OFFSITE ===
+  { id:1, phone:"(555) 100-0001", provider:"Memorial Hospital", method:"offsite",
+    totalRTs:52, actionableRTs:45, daysSinceLastCall:1, pastDueCount:2,
+    scenario:"High volume, called yesterday, few past due",
+    statuses:{NEW:20,IN_PROGRESS:25,RETRIEVED:3,COMPLETED:1,BLOCKED:3,CANCELLED:0},
+    onsiteSub:null, naReason:null },
+  { id:2, phone:"(555) 100-0002", provider:"St. Mary's Medical", method:"offsite",
+    totalRTs:12, actionableRTs:8, daysSinceLastCall:14, pastDueCount:5,
+    scenario:"Low volume, very stale, several past due",
+    statuses:{NEW:3,IN_PROGRESS:5,RETRIEVED:1,COMPLETED:1,BLOCKED:2,CANCELLED:0},
+    onsiteSub:null, naReason:null },
+  { id:3, phone:"(555) 100-0003", provider:"Cedar Health System", method:"offsite",
+    totalRTs:30, actionableRTs:22, daysSinceLastCall:3, pastDueCount:12,
+    scenario:"Medium volume, recent-ish, many past due",
+    statuses:{NEW:10,IN_PROGRESS:12,RETRIEVED:2,COMPLETED:2,BLOCKED:4,CANCELLED:0},
+    onsiteSub:null, naReason:null },
+  { id:4, phone:"(555) 100-0004", provider:"Valley Medical Group", method:"offsite",
+    totalRTs:42, actionableRTs:35, daysSinceLastCall:10, pastDueCount:8,
+    scenario:"High volume, stale, many past due",
+    statuses:{NEW:15,IN_PROGRESS:20,RETRIEVED:1,COMPLETED:2,BLOCKED:3,CANCELLED:1},
+    onsiteSub:null, naReason:null },
+  { id:5, phone:"(555) 100-0005", provider:"Pacific Health Center", method:"offsite",
+    totalRTs:5, actionableRTs:3, daysSinceLastCall:null, pastDueCount:0,
+    scenario:"Low volume, never called, no past due",
+    statuses:{NEW:3,IN_PROGRESS:0,RETRIEVED:0,COMPLETED:1,BLOCKED:1,CANCELLED:0},
+    onsiteSub:null, naReason:null },
+  { id:6, phone:"(555) 100-0006", provider:"Summit Care Network", method:"offsite",
+    totalRTs:8, actionableRTs:0, daysSinceLastCall:2, pastDueCount:0,
+    scenario:"No actionable RTs remaining",
+    statuses:{NEW:0,IN_PROGRESS:0,RETRIEVED:2,COMPLETED:3,BLOCKED:2,CANCELLED:1},
+    onsiteSub:null, naReason:"0 actionable (Retrieved:2, Completed:3, Blocked:2, Cancelled:1)" },
+  { id:7, phone:"(555) 100-0007", provider:"Lakeside Clinic", method:"offsite",
+    totalRTs:20, actionableRTs:15, daysSinceLastCall:5, pastDueCount:3,
+    scenario:"Medium everything",
+    statuses:{NEW:8,IN_PROGRESS:7,RETRIEVED:1,COMPLETED:1,BLOCKED:3,CANCELLED:0},
+    onsiteSub:null, naReason:null },
+  { id:8, phone:"(555) 100-0008", provider:"Riverside Medical", method:"offsite",
+    totalRTs:55, actionableRTs:50, daysSinceLastCall:0, pastDueCount:0,
+    scenario:"Highest volume, called today, no past due",
+    statuses:{NEW:25,IN_PROGRESS:25,RETRIEVED:2,COMPLETED:1,BLOCKED:2,CANCELLED:0},
+    onsiteSub:null, naReason:null },
+  { id:9, phone:"(555) 100-0009", provider:"Mountain View Health", method:"offsite",
+    totalRTs:18, actionableRTs:12, daysSinceLastCall:7, pastDueCount:7,
+    scenario:"Medium volume, week stale, high past due ratio",
+    statuses:{NEW:5,IN_PROGRESS:7,RETRIEVED:1,COMPLETED:1,BLOCKED:3,CANCELLED:1},
+    onsiteSub:null, naReason:null },
+  { id:10, phone:"(555) 100-0010", provider:"Harbor Regional", method:"offsite",
+    totalRTs:34, actionableRTs:28, daysSinceLastCall:4, pastDueCount:1,
+    scenario:"Good volume, moderate recency, low past due",
+    statuses:{NEW:12,IN_PROGRESS:16,RETRIEVED:2,COMPLETED:1,BLOCKED:3,CANCELLED:0},
+    onsiteSub:null, naReason:null },
+
+  // === ONSITE - ACTIONABLE ===
+  { id:11, phone:"(555) 200-0001", provider:"Downtown Medical Plaza", method:"onsite",
+    totalRTs:14, actionableRTs:10, daysSinceLastCall:3, pastDueCount:1,
+    scenario:"Most RTs need scheduling, 2 already assigned",
+    statuses:{NEW:6,IN_PROGRESS:8,RETRIEVED:0,COMPLETED:0,BLOCKED:0,CANCELLED:0},
+    onsiteSub:{OUTREACH:4,SCHED_UNASGN:0,SCHED_ASGN:2,NO_AVAIL:0,OS_COMPLETED:2},
+    naReason:null },
+  { id:13, phone:"(555) 200-0003", provider:"Eastside Medical", method:"onsite",
+    totalRTs:12, actionableRTs:5, daysSinceLastCall:6, pastDueCount:2,
+    scenario:"Partially actionable, half have no availability",
+    statuses:{NEW:3,IN_PROGRESS:7,RETRIEVED:1,COMPLETED:1,BLOCKED:0,CANCELLED:0},
+    onsiteSub:{OUTREACH:2,SCHED_UNASGN:0,SCHED_ASGN:0,NO_AVAIL:5,OS_COMPLETED:0},
+    naReason:null },
+  { id:14, phone:"(555) 200-0004", provider:"Central Clinic", method:"onsite",
+    totalRTs:8, actionableRTs:8, daysSinceLastCall:null, pastDueCount:0,
+    scenario:"All New RTs, never called - fresh inventory",
+    statuses:{NEW:8,IN_PROGRESS:0,RETRIEVED:0,COMPLETED:0,BLOCKED:0,CANCELLED:0},
+    onsiteSub:{OUTREACH:0,SCHED_UNASGN:0,SCHED_ASGN:0,NO_AVAIL:0,OS_COMPLETED:0},
+    naReason:null },
+  { id:16, phone:"(555) 200-0006", provider:"Parkview Health", method:"onsite",
+    totalRTs:18, actionableRTs:12, daysSinceLastCall:2, pastDueCount:3,
+    scenario:"Good volume, mix of outreach and scheduled",
+    statuses:{NEW:4,IN_PROGRESS:12,RETRIEVED:1,COMPLETED:1,BLOCKED:0,CANCELLED:0},
+    onsiteSub:{OUTREACH:8,SCHED_UNASGN:2,SCHED_ASGN:1,NO_AVAIL:1,OS_COMPLETED:0},
+    naReason:null },
+
+  // === ONSITE - N/A (0 actionable) ===
+  { id:12, phone:"(555) 200-0002", provider:"Westside Health Group", method:"onsite",
+    totalRTs:12, actionableRTs:0, daysSinceLastCall:2, pastDueCount:0,
+    scenario:"All appointments scheduled, awaiting assignment",
+    statuses:{NEW:0,IN_PROGRESS:12,RETRIEVED:0,COMPLETED:0,BLOCKED:0,CANCELLED:0},
+    onsiteSub:{OUTREACH:0,SCHED_UNASGN:8,SCHED_ASGN:4,NO_AVAIL:0,OS_COMPLETED:0},
+    naReason:"0 actionable - all Scheduled (Unassigned:8, Assigned:4)" },
+  { id:15, phone:"(555) 200-0005", provider:"Northgate Health", method:"onsite",
+    totalRTs:6, actionableRTs:0, daysSinceLastCall:4, pastDueCount:0,
+    scenario:"Provider has no availability for any RT",
+    statuses:{NEW:0,IN_PROGRESS:6,RETRIEVED:0,COMPLETED:0,BLOCKED:0,CANCELLED:0},
+    onsiteSub:{OUTREACH:0,SCHED_UNASGN:0,SCHED_ASGN:0,NO_AVAIL:6,OS_COMPLETED:0},
+    naReason:"0 actionable - all No Availability (6)" },
+  { id:17, phone:"(555) 200-0007", provider:"Bayshore Medical Center", method:"onsite",
+    totalRTs:10, actionableRTs:0, daysSinceLastCall:1, pastDueCount:0,
+    scenario:"Mix of scheduled and no availability",
+    statuses:{NEW:0,IN_PROGRESS:10,RETRIEVED:0,COMPLETED:0,BLOCKED:0,CANCELLED:0},
+    onsiteSub:{OUTREACH:0,SCHED_UNASGN:3,SCHED_ASGN:4,NO_AVAIL:3,OS_COMPLETED:0},
+    naReason:"0 actionable - Scheduled:7, No Availability:3" },
+  { id:18, phone:"(555) 200-0008", provider:"Riverside Onsite Group", method:"onsite",
+    totalRTs:15, actionableRTs:0, daysSinceLastCall:3, pastDueCount:0,
+    scenario:"All appointments assigned to CRs",
+    statuses:{NEW:0,IN_PROGRESS:12,RETRIEVED:2,COMPLETED:1,BLOCKED:0,CANCELLED:0},
+    onsiteSub:{OUTREACH:0,SCHED_UNASGN:0,SCHED_ASGN:12,NO_AVAIL:0,OS_COMPLETED:0},
+    naReason:"0 actionable - Sched-Assigned:12, Retrieved:2, Completed:1" },
+  { id:19, phone:"(555) 200-0009", provider:"Summit Onsite Clinic", method:"onsite",
+    totalRTs:9, actionableRTs:0, daysSinceLastCall:8, pastDueCount:0,
+    scenario:"Completed onsite visits, nothing left to schedule",
+    statuses:{NEW:0,IN_PROGRESS:2,RETRIEVED:4,COMPLETED:3,BLOCKED:0,CANCELLED:0},
+    onsiteSub:{OUTREACH:0,SCHED_UNASGN:0,SCHED_ASGN:0,NO_AVAIL:2,OS_COMPLETED:0},
+    naReason:"0 actionable - No Availability:2, Retrieved:4, Completed:3" }
+];
+
+var nextId=100;
+var PRESETS=[
+  {name:"Current (Volume Only)",vol:100,rec:0,pd:0},
+  {name:"V1 Balanced",vol:40,rec:35,pd:25},
+  {name:"Recency Heavy",vol:20,rec:60,pd:20},
+  {name:"Past Due Focus",vol:20,rec:20,pd:60},
+  {name:"Equal Weight",vol:33,rec:34,pd:33}
+];
+var state={volWeight:40,recWeight:35,pdWeight:25,showOffsite:true,showOnsite:true,showNA:true,expandedId:null};
+
+// ============================================================
+// SCORING
+// ============================================================
+function minMaxNorm(vals){
+  var mn=Math.min.apply(null,vals),mx=Math.max.apply(null,vals);
+  if(mx===mn) return vals.map(function(){return 0.5;});
+  return vals.map(function(v){return (v-mn)/(mx-mn);});
+}
+function calculateScores(){
+  var active=phones.filter(function(p){return p.actionableRTs>0;}),
+      inactive=phones.filter(function(p){return p.actionableRTs===0;});
+  if(!active.length){inactive.forEach(function(p){p._score=0;p._rank=null;p._normVol=0;p._normRec=0;p._normPD=0;p._effectiveDays=0;p._volRank=null;});return inactive.slice();}
+  var calledDays=active.filter(function(p){return p.daysSinceLastCall!==null;}).map(function(p){return p.daysSinceLastCall;}),
+      maxDays=calledDays.length?Math.max.apply(null,calledDays):14;
+  active.forEach(function(p){p._effectiveDays=p.daysSinceLastCall!==null?p.daysSinceLastCall:maxDays;});
+  var nV=minMaxNorm(active.map(function(p){return p.actionableRTs;})),
+      nR=minMaxNorm(active.map(function(p){return p._effectiveDays;})),
+      nP=minMaxNorm(active.map(function(p){return p.pastDueCount;})),
+      tot=state.volWeight+state.recWeight+state.pdWeight,
+      eV=tot>0?state.volWeight/tot:0,eR=tot>0?state.recWeight/tot:0,eP=tot>0?state.pdWeight/tot:0;
+  active.forEach(function(p,i){p._normVol=nV[i];p._normRec=nR[i];p._normPD=nP[i];p._score=Math.round((nV[i]*eV+nR[i]*eR+nP[i]*eP)*99+1);});
+  active.sort(function(a,b){return b._score-a._score;});
+  active.forEach(function(p,i){p._rank=i+1;});
+  var vs=active.slice().sort(function(a,b){return b.actionableRTs-a.actionableRTs;});
+  vs.forEach(function(p,i){p._volRank=i+1;});
+  inactive.forEach(function(p){p._score=0;p._rank=null;p._normVol=0;p._normRec=0;p._normPD=0;p._effectiveDays=p.daysSinceLastCall||0;p._volRank=null;});
+  return active.concat(inactive);
+}
+
+// ============================================================
+// DOM HELPER
+// ============================================================
+function el(tag,attrs,children){
+  var n=document.createElement(tag);
+  if(attrs) Object.keys(attrs).forEach(function(k){
+    if(k==='className') n.className=attrs[k];
+    else if(k==='textContent') n.textContent=attrs[k];
+    else if(k.indexOf('on')===0) n.addEventListener(k.slice(2).toLowerCase(),attrs[k]);
+    else if(k==='style'&&typeof attrs[k]==='object') Object.assign(n.style,attrs[k]);
+    else n.setAttribute(k,attrs[k]);
+  });
+  if(children){
+    if(typeof children==='string') n.textContent=children;
+    else if(Array.isArray(children)) children.forEach(function(c){if(c) n.appendChild(c);});
+    else n.appendChild(children);
+  }
+  return n;
+}
+function txt(s){return document.createTextNode(s);}
+
+// ============================================================
+// RENDER - RT BREAKDOWN (detail view)
+// ============================================================
+function buildBreakdown(p){
+  var wrap=el('div');
+
+  // ---- TO-GO VOLUME COMPOSITION ----
+  wrap.appendChild(el('div',{className:'section-divider'},'To-go Volume (Actionable)'));
+
+  if(p.method==='offsite'){
+    // Offsite: actionable = NEW + IN_PROGRESS
+    var toGoItems=[
+      {label:'New',count:p.statuses.NEW,color:C.NEW,act:true},
+      {label:'In Progress',count:p.statuses.IN_PROGRESS,color:C.IN_PROGRESS,act:true}
+    ].filter(function(x){return x.count>0;});
+    if(toGoItems.length) wrap.appendChild(buildBar(toGoItems,p.actionableRTs));
+    else wrap.appendChild(el('div',{style:{fontSize:'12px',color:'#8b8fa3',padding:'4px 0'}},'None'));
+  } else {
+    // Onsite: actionable = NEW + IN_PROGRESS(Outreach in Progress only)
+    var toGoItems=[
+      {label:'New',count:p.statuses.NEW,color:C.NEW,act:true},
+      {label:'Outreach in Progress',count:p.onsiteSub?p.onsiteSub.OUTREACH:0,color:C.OS_OUTREACH,act:true}
+    ].filter(function(x){return x.count>0;});
+    if(toGoItems.length) wrap.appendChild(buildBar(toGoItems,p.actionableRTs));
+    else wrap.appendChild(el('div',{style:{fontSize:'12px',color:'#8b8fa3',padding:'4px 0'}},'None (all RTs are scheduled or unavailable)'));
+  }
+
+  var toGoTable=el('table',{className:'detail-table'});
+  var r1=el('tr');r1.appendChild(el('td',{},'Actionable (to-go)'));
+  r1.appendChild(el('td',{style:{color:'#22c55e',fontWeight:'600'}},String(p.actionableRTs)));
+  toGoTable.appendChild(r1);
+  wrap.appendChild(toGoTable);
+
+  // ---- OVERALL VOLUME COMPOSITION ----
+  wrap.appendChild(el('div',{className:'section-divider'},'Overall Volume (All RTs)'));
+
+  if(p.method==='offsite'){
+    var allItems=[
+      {label:'New',count:p.statuses.NEW,color:C.NEW,act:true},
+      {label:'In Progress',count:p.statuses.IN_PROGRESS,color:C.IN_PROGRESS,act:true},
+      {label:'Retrieved',count:p.statuses.RETRIEVED,color:C.RETRIEVED,act:false},
+      {label:'Completed',count:p.statuses.COMPLETED,color:C.COMPLETED,act:false},
+      {label:'Blocked',count:p.statuses.BLOCKED,color:C.BLOCKED,act:false},
+      {label:'Cancelled',count:p.statuses.CANCELLED,color:C.CANCELLED,act:false}
+    ].filter(function(x){return x.count>0;});
+    wrap.appendChild(buildBar(allItems,p.totalRTs));
+    wrap.appendChild(buildLegend(allItems,true));
+  } else {
+    // Onsite: show RT statuses AND sub-statuses for IN_PROGRESS
+    var allItems=[];
+    if(p.statuses.NEW>0) allItems.push({label:'New',count:p.statuses.NEW,color:C.NEW,act:true});
+    // Break IN_PROGRESS into sub-statuses
+    if(p.onsiteSub){
+      if(p.onsiteSub.OUTREACH>0) allItems.push({label:'Outreach in Progress',count:p.onsiteSub.OUTREACH,color:C.OS_OUTREACH,act:true});
+      if(p.onsiteSub.SCHED_UNASGN>0) allItems.push({label:'Scheduled - Unassigned',count:p.onsiteSub.SCHED_UNASGN,color:C.OS_SCHED_UNASGN,act:false});
+      if(p.onsiteSub.SCHED_ASGN>0) allItems.push({label:'Scheduled - Assigned',count:p.onsiteSub.SCHED_ASGN,color:C.OS_SCHED_ASGN,act:false});
+      if(p.onsiteSub.NO_AVAIL>0) allItems.push({label:'No Availability',count:p.onsiteSub.NO_AVAIL,color:C.OS_NO_AVAIL,act:false});
+      if(p.onsiteSub.OS_COMPLETED>0) allItems.push({label:'Onsite Completed',count:p.onsiteSub.OS_COMPLETED,color:C.OS_COMPLETED,act:false});
+    }
+    if(p.statuses.RETRIEVED>0) allItems.push({label:'Retrieved',count:p.statuses.RETRIEVED,color:C.RETRIEVED,act:false});
+    if(p.statuses.COMPLETED>0) allItems.push({label:'Completed',count:p.statuses.COMPLETED,color:C.COMPLETED,act:false});
+    if(p.statuses.BLOCKED>0) allItems.push({label:'Blocked',count:p.statuses.BLOCKED,color:C.BLOCKED,act:false});
+    if(p.statuses.CANCELLED>0) allItems.push({label:'Cancelled',count:p.statuses.CANCELLED,color:C.CANCELLED,act:false});
+    wrap.appendChild(buildBar(allItems,p.totalRTs));
+    wrap.appendChild(buildLegend(allItems,true));
+  }
+
+  var allTable=el('table',{className:'detail-table',style:{marginTop:'8px'}});
+  var ra=el('tr');ra.appendChild(el('td',{},'Actionable'));ra.appendChild(el('td',{style:{color:'#22c55e',fontWeight:'600'}},String(p.actionableRTs)));allTable.appendChild(ra);
+  var rna=el('tr');rna.appendChild(el('td',{},'Not Actionable'));rna.appendChild(el('td',{style:{color:'#ef4444'}},String(p.totalRTs-p.actionableRTs)));allTable.appendChild(rna);
+  var rt=el('tr');rt.appendChild(el('td',{},'Total RTs'));rt.appendChild(el('td',{},String(p.totalRTs)));allTable.appendChild(rt);
+  wrap.appendChild(allTable);
+
+  return wrap;
+}
+
+function buildBar(items,total){
+  var bar=el('div',{className:'rt-bar'});
+  items.forEach(function(it){
+    var pct=total>0?(it.count/total*100):0;
+    bar.appendChild(el('div',{className:'rt-segment',style:{width:pct+'%',background:it.color},title:it.label+': '+it.count},String(it.count)));
+  });
+  return bar;
+}
+function buildLegend(items,showActionable){
+  var legend=el('div',{className:'rt-legend'});
+  items.forEach(function(it){
+    var item=el('div',{className:'rt-legend-item'});
+    item.appendChild(el('div',{className:'rt-legend-dot',style:{background:it.color}}));
+    item.appendChild(txt(it.label+' ('+it.count+')'));
+    if(showActionable){
+      var tag=el('span',{className:'actionable-tag '+(it.act?'actionable-yes':'actionable-no')},it.act?'ACTIONABLE':'NOT ACTIONABLE');
+      item.appendChild(tag);
+    }
+    legend.appendChild(item);
+  });
+  return legend;
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function renderPresets(){
+  var c=document.getElementById('presets');c.textContent='';
+  PRESETS.forEach(function(pr){
+    var isA=pr.vol===state.volWeight&&pr.rec===state.recWeight&&pr.pd===state.pdWeight;
+    c.appendChild(el('button',{className:'preset-btn'+(isA?' active':''),onClick:function(){state.volWeight=pr.vol;state.recWeight=pr.rec;state.pdWeight=pr.pd;render();}},pr.name));
+  });
+}
+function renderStats(filtered){
+  var ac=filtered.filter(function(p){return p.actionableRTs>0;}).length,
+      na=filtered.filter(function(p){return p.actionableRTs===0;}).length,
+      ap=filtered.filter(function(p){return p._score>0;}),
+      avg=ac>0?Math.round(ap.reduce(function(s,p){return s+p._score;},0)/ac):0,
+      top=filtered.length>0&&filtered[0]._score>0?filtered[0]:null;
+  var bar=document.getElementById('stats-bar');bar.textContent='';
+  function add(v,l,c){bar.appendChild(el('div',{className:'stat'},[el('span',{className:'stat-value',style:{color:c}},String(v)),el('span',{className:'stat-label'},l)]));}
+  add(ac,'Active phones','#22c55e');add(na,'Filtered (N/A)','#ef4444');add(avg,'Avg score','#6366f1');
+  if(top) add(top.provider,'Top ranked ('+top._score+')','#eab308');
+}
+function scoreBarColor(s){if(s===0)return'#363b4e';if(s<30)return'#ef4444';if(s<50)return'#f97316';if(s<70)return'#eab308';if(s<85)return'#3b82f6';return'#22c55e';}
+
+function renderTable(){
+  var ranked=calculateScores();
+  var filtered=ranked.filter(function(p){
+    if(p.method==='offsite'&&!state.showOffsite) return false;
+    if(p.method==='onsite'&&!state.showOnsite) return false;
+    if(p.actionableRTs===0&&!state.showNA) return false;
+    return true;
+  });
+  renderStats(filtered);
+  var tbody=document.getElementById('table-body');tbody.textContent='';
+
+  filtered.forEach(function(p){
+    var isNA=p.actionableRTs===0, isExp=state.expandedId===p.id;
+    var tr=el('tr',{className:isNA?'row-na row-active':'row-active'});
+    tr.addEventListener('click',function(){state.expandedId=state.expandedId===p.id?null:p.id;render();});
+
+    // Rank
+    var rc=el('td'),rd=el('div',{className:'rank-cell'});
+    rd.appendChild(el('span',{className:'rank-num'},isNA?'N/A':String(p._rank)));
+    if(!isNA&&p._volRank!=null){var d=p._volRank-p._rank;
+      if(d>0)rd.appendChild(el('span',{className:'rank-delta rank-up'},'\u2191'+d));
+      else if(d<0)rd.appendChild(el('span',{className:'rank-delta rank-down'},'\u2193'+Math.abs(d)));
+      else rd.appendChild(el('span',{className:'rank-delta rank-same'},'='));
+    }
+    rc.appendChild(rd);tr.appendChild(rc);
+
+    // Provider
+    var pc=el('td');pc.appendChild(el('div',{className:'provider-name'},p.provider));
+    pc.appendChild(el('div',{className:'phone-number'},p.phone));
+    pc.appendChild(el('div',{className:isNA?'na-reason':'scenario-text'},isNA?p.naReason:p.scenario));
+    tr.appendChild(pc);
+
+    // Method
+    var mc=el('td');mc.appendChild(el('span',{className:'badge badge-'+(p.method==='offsite'?'offsite':'onsite')},p.method.charAt(0).toUpperCase()+p.method.slice(1)));
+    tr.appendChild(mc);
+
+    // Values
+    tr.appendChild(el('td',{className:'num'},isNA?'\u2014':String(p.actionableRTs)));
+    tr.appendChild(el('td',{className:'num'},isNA?'\u2014':(p.daysSinceLastCall===null?'Never':String(p.daysSinceLastCall))));
+    tr.appendChild(el('td',{className:'num'},isNA?'\u2014':String(p.pastDueCount)));
+
+    // Score
+    var sc=el('td'),sd=el('div',{className:'score-cell'});
+    sd.appendChild(el('span',{className:'score-num'},String(p._score)));
+    var bg=el('div',{className:'score-bar-bg'});
+    bg.appendChild(el('div',{className:'score-bar',style:{width:p._score+'%',background:scoreBarColor(p._score)}}));
+    sd.appendChild(bg);sc.appendChild(sd);tr.appendChild(sc);
+    tbody.appendChild(tr);
+
+    // Detail row - works for BOTH active and N/A phones
+    if(isExp){
+      var dtr=el('tr',{className:'detail-row'}),dtd=el('td',{colspan:'7'}),dcont=el('div',{className:'detail-content'});
+
+      if(isNA){
+        // N/A: show WHY it's filtered + RT composition
+        var ws=el('div',{className:'detail-section'});
+        ws.appendChild(el('h4',{},'Why N/A (Priority = 0)'));
+        var whyBox=el('div',{className:'calc-formula',style:{marginBottom:'12px'}});
+        whyBox.appendChild(el('span',{style:{color:'#ef4444',fontWeight:'700'}},'To-go Volume = 0'));
+        whyBox.appendChild(el('br'));whyBox.appendChild(el('br'));
+        whyBox.appendChild(txt('This phone number has no actionable RTs.'));
+        whyBox.appendChild(el('br'));
+        if(p.method==='onsite'){
+          whyBox.appendChild(el('br'));
+          whyBox.appendChild(el('span',{style:{color:'#818cf8'}},'Onsite actionable definition:'));
+          whyBox.appendChild(el('br'));
+          whyBox.appendChild(txt('  \u2705 RT status = New'));
+          whyBox.appendChild(el('br'));
+          whyBox.appendChild(txt('  \u2705 RT status = In Progress + sub-status = Outreach in Progress'));
+          whyBox.appendChild(el('br'));
+          whyBox.appendChild(el('br'));
+          whyBox.appendChild(el('span',{style:{color:'#ef4444'}},'NOT actionable (excluded from to-go volume):'));
+          whyBox.appendChild(el('br'));
+          whyBox.appendChild(txt('  \u274c Scheduled - Unassigned'));
+          whyBox.appendChild(el('br'));
+          whyBox.appendChild(txt('  \u274c Scheduled - Assigned'));
+          whyBox.appendChild(el('br'));
+          whyBox.appendChild(txt('  \u274c Scheduling - No Availability'));
+        } else {
+          whyBox.appendChild(el('br'));
+          whyBox.appendChild(el('span',{style:{color:'#818cf8'}},'Offsite actionable definition:'));
+          whyBox.appendChild(el('br'));
+          whyBox.appendChild(txt('  \u2705 RT status = New'));
+          whyBox.appendChild(el('br'));
+          whyBox.appendChild(txt('  \u2705 RT status = In Progress'));
+          whyBox.appendChild(el('br'));
+          whyBox.appendChild(el('br'));
+          whyBox.appendChild(txt('All RTs are in terminal/blocked statuses.'));
+        }
+        whyBox.appendChild(el('br'));whyBox.appendChild(el('br'));
+        whyBox.appendChild(el('span',{style:{color:'#8b8fa3'}},'Result: NexReach will NOT pull this phone number.'));
+        ws.appendChild(whyBox);
+        dcont.appendChild(ws);
+
+        // RT Composition
+        var rs=el('div',{className:'detail-section'});rs.appendChild(el('h4',{},'RT Composition'));
+        rs.appendChild(buildBreakdown(p));
+        dcont.appendChild(rs);
+
+      } else {
+        // Active: show score calculation + RT composition
+        var cs=el('div',{className:'detail-section'});cs.appendChild(el('h4',{},'Score Calculation'));
+        var ct=el('table',{className:'detail-table'});
+        [[('To-go Volume (raw)'),String(p.actionableRTs)],['To-go Volume (norm)',p._normVol.toFixed(3)],
+         ['Days Since Call (raw)',p.daysSinceLastCall===null?'Never \u2192 '+p._effectiveDays+' (max)':String(p.daysSinceLastCall)],
+         ['Days Since Call (norm)',p._normRec.toFixed(3)],['Past Due Count (raw)',String(p.pastDueCount)],['Past Due Count (norm)',p._normPD.toFixed(3)]
+        ].forEach(function(row){var r=el('tr');r.appendChild(el('td',{},row[0]));r.appendChild(el('td',{},row[1]));ct.appendChild(r);});
+        cs.appendChild(ct);
+
+        var tot=state.volWeight+state.recWeight+state.pdWeight;
+        var ev=(tot>0?(state.volWeight/tot*100).toFixed(1):'0'),er=(tot>0?(state.recWeight/tot*100).toFixed(1):'0'),ep=(tot>0?(state.pdWeight/tot*100).toFixed(1):'0');
+        var raw=(p._normVol*state.volWeight/tot)+(p._normRec*state.recWeight/tot)+(p._normPD*state.pdWeight/tot);
+        var f=el('div',{className:'calc-formula'});
+        f.appendChild(el('span',{className:'calc-val'},p._normVol.toFixed(3)));f.appendChild(txt(' \u00d7 '+ev+'% + '));
+        f.appendChild(el('span',{className:'calc-val'},p._normRec.toFixed(3)));f.appendChild(txt(' \u00d7 '+er+'% + '));
+        f.appendChild(el('span',{className:'calc-val'},p._normPD.toFixed(3)));f.appendChild(txt(' \u00d7 '+ep+'%'));
+        f.appendChild(el('br'));f.appendChild(txt('= '));
+        f.appendChild(el('span',{className:'calc-val'},raw.toFixed(4)));f.appendChild(txt(' \u00d7 99 + 1 = '));
+        f.appendChild(el('span',{className:'calc-result'},String(p._score)));
+        if(p._volRank!==p._rank){f.appendChild(el('br'));f.appendChild(el('br'));f.appendChild(txt('Volume-only rank: #'+p._volRank+' \u2192 Weighted rank: #'+p._rank));}
+        cs.appendChild(f);dcont.appendChild(cs);
+
+        var rs=el('div',{className:'detail-section'});rs.appendChild(el('h4',{},'RT Composition'));
+        rs.appendChild(buildBreakdown(p));
+        dcont.appendChild(rs);
+      }
+
+      dtd.appendChild(dcont);dtr.appendChild(dtd);tbody.appendChild(dtr);
+    }
+  });
+}
+
+function updatePrompt(){
+  var ranked=calculateScores(),active=ranked.filter(function(p){return p._score>0;}),inactive=ranked.filter(function(p){return p._score===0;});
+  var tot=state.volWeight+state.recWeight+state.pdWeight;
+  var ev=tot>0?(state.volWeight/tot*100).toFixed(0):'0',er=tot>0?(state.recWeight/tot*100).toFixed(0):'0',ep=tot>0?(state.pdWeight/tot*100).toFixed(0):'0';
+  var parts=['Priority Scoring V1 Configuration','Weights: To-go Volume '+ev+'%, Days Since Last Call '+er+'%, Past Due Count '+ep+'%','Scoring: Min-max normalization, scaled 1-100, hourly batch refresh',''];
+  if(active.length){
+    parts.push('Top 3 ranked phones:');
+    active.slice(0,3).forEach(function(p,i){var d=p._volRank-p._rank;var ds=d>0?' (\u2191'+d+' vs vol-only)':d<0?' (\u2193'+Math.abs(d)+' vs vol-only)':' (same)';
+      parts.push('  '+(i+1)+'. '+p.provider+' - Score: '+p._score+' | Vol: '+p.actionableRTs+', Days: '+(p.daysSinceLastCall===null?'Never':p.daysSinceLastCall)+', PastDue: '+p.pastDueCount+ds);});
+    parts.push('');
+    var bm=active.filter(function(p){return Math.abs(p._volRank-p._rank)>=2;}).sort(function(a,b){return(b._volRank-b._rank)-(a._volRank-a._rank);});
+    if(bm.length){parts.push('Notable ranking changes vs volume-only:');bm.forEach(function(p){var d=p._volRank-p._rank;var ds=p.daysSinceLastCall===null?'(never called)':p.daysSinceLastCall+' days';
+      if(d>0)parts.push('  \u2191 '+p.provider+': #'+p._volRank+' \u2192 #'+p._rank+' (stale '+ds+', '+p.pastDueCount+' past due)');
+      else parts.push('  \u2193 '+p.provider+': #'+p._volRank+' \u2192 #'+p._rank+' (recently called, '+p.pastDueCount+' past due)');});parts.push('');}
+  }
+  if(inactive.length){parts.push(inactive.length+' phone(s) filtered as N/A (priority = 0):');inactive.forEach(function(p){parts.push('  - '+p.provider+' ('+p.method+'): '+p.naReason);});}
+  document.getElementById('output-text').textContent=parts.join('\n');
+}
+
+// ============================================================
+// EVENTS
+// ============================================================
+document.getElementById('vol-slider').addEventListener('input',function(e){state.volWeight=parseInt(e.target.value);render();});
+document.getElementById('rec-slider').addEventListener('input',function(e){state.recWeight=parseInt(e.target.value);render();});
+document.getElementById('pd-slider').addEventListener('input',function(e){state.pdWeight=parseInt(e.target.value);render();});
+document.getElementById('filter-offsite').addEventListener('change',function(e){state.showOffsite=e.target.checked;render();});
+document.getElementById('filter-onsite').addEventListener('change',function(e){state.showOnsite=e.target.checked;render();});
+document.getElementById('filter-na').addEventListener('change',function(e){state.showNA=e.target.checked;render();});
+document.getElementById('copy-btn').addEventListener('click',function(){
+  navigator.clipboard.writeText(document.getElementById('output-text').textContent).then(function(){
+    var b=document.getElementById('copy-btn');b.textContent='Copied!';setTimeout(function(){b.textContent='Copy';},1500);});});
+document.getElementById('add-toggle').addEventListener('click',function(){document.getElementById('add-form').classList.add('visible');document.getElementById('add-toggle').style.display='none';});
+document.getElementById('btn-cancel').addEventListener('click',function(){document.getElementById('add-form').classList.remove('visible');document.getElementById('add-toggle').style.display='block';});
+document.getElementById('btn-add').addEventListener('click',function(){
+  var prov=document.getElementById('add-provider').value||'Custom Provider',meth=document.getElementById('add-method').value,
+      act=parseInt(document.getElementById('add-volume').value)||0,days=parseInt(document.getElementById('add-days').value),
+      pd=parseInt(document.getElementById('add-pastdue').value)||0,tot=Math.max(parseInt(document.getElementById('add-total').value)||act,act);
+  var id=nextId++,ph='(555) 900-'+String(id).padStart(4,'0');
+  var newS=meth==='offsite'
+    ? {NEW:Math.ceil(act/2),IN_PROGRESS:Math.floor(act/2),RETRIEVED:0,COMPLETED:Math.max(0,tot-act),BLOCKED:0,CANCELLED:0}
+    : {NEW:Math.ceil(act/2),IN_PROGRESS:Math.floor(act/2)+Math.max(0,tot-act),RETRIEVED:0,COMPLETED:0,BLOCKED:0,CANCELLED:0};
+  var newOS=meth==='onsite'?{OUTREACH:Math.floor(act/2),SCHED_UNASGN:0,SCHED_ASGN:0,NO_AVAIL:Math.max(0,tot-act),OS_COMPLETED:0}:null;
+  phones.push({id:id,phone:ph,provider:prov,method:meth,totalRTs:tot,actionableRTs:act,daysSinceLastCall:days<0?null:days,pastDueCount:pd,
+    scenario:'Custom scenario',statuses:newS,onsiteSub:newOS,naReason:act===0?'0 actionable RTs':null});
+  document.getElementById('add-form').classList.remove('visible');document.getElementById('add-toggle').style.display='block';render();
+});
+
+function render(){
+  var tot=state.volWeight+state.recWeight+state.pdWeight;
+  document.getElementById('vol-value').textContent=state.volWeight;document.getElementById('rec-value').textContent=state.recWeight;document.getElementById('pd-value').textContent=state.pdWeight;
+  document.getElementById('vol-eff').textContent='Effective: '+(tot>0?(state.volWeight/tot*100).toFixed(0):'0')+'%';
+  document.getElementById('rec-eff').textContent='Effective: '+(tot>0?(state.recWeight/tot*100).toFixed(0):'0')+'%';
+  document.getElementById('pd-eff').textContent='Effective: '+(tot>0?(state.pdWeight/tot*100).toFixed(0):'0')+'%';
+  document.getElementById('vol-slider').value=state.volWeight;document.getElementById('rec-slider').value=state.recWeight;document.getElementById('pd-slider').value=state.pdWeight;
+  renderPresets();renderTable();updatePrompt();
+}
+render();
+</script>
+</body>
+</html>
